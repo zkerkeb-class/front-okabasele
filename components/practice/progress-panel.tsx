@@ -1,37 +1,51 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { getUserSessionPerformances } from "@/lib/api/session"
 
-export function ProgressPanel() {
+interface ProgressPanelProps {
+  sessionId?: string | null
+  userId?: string | null
+}
+
+export function ProgressPanel({ sessionId, userId }: ProgressPanelProps) {
   const [activeTab, setActiveTab] = useState("stats")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<any>({})
+  const [recentMistakes, setRecentMistakes] = useState<any[]>([])
+  const [achievements, setAchievements] = useState<any[]>([])
 
-  // Sample data for demonstration
-  const stats = {
-    accuracy: 85,
-    timing: 78,
-    dynamics: 92,
-    streak: 12,
-    totalNotes: 48,
-    correctNotes: 41,
-    incorrectNotes: 7,
-    missedNotes: 0,
-  }
-
-  const recentMistakes = [
-    { note: "F4", measure: 2, count: 3, issue: "Timing" },
-    { note: "G4", measure: 3, count: 2, issue: "Wrong Note" },
-    { note: "E4", measure: 1, count: 1, issue: "Dynamics" },
-  ]
-
-  const achievements = [
-    { name: "First Scale", status: "completed", date: "Today" },
-    { name: "Perfect Timing", status: "in-progress", progress: 70 },
-    { name: "Note Streak", status: "in-progress", progress: 60 },
-  ]
+  useEffect(() => {
+    if (!sessionId || !userId) return
+    setLoading(true)
+    setError(null)
+    getUserSessionPerformances(sessionId, userId)
+      .then((data) => {
+        // Example: parse backend data into stats, mistakes, achievements
+        // This should be adapted to your backend response structure
+        setStats({
+          accuracy: data?.overallAccuracy || 0,
+          timing: data?.overallTiming || 0,
+          dynamics: data?.overallDynamics || 0,
+          streak: data?.currentStreak || 0,
+          totalNotes: data?.totalNotes || 0,
+          correctNotes: data?.correctNotes || 0,
+          incorrectNotes: data?.incorrectNotes || 0,
+          missedNotes: data?.missedNotes || 0,
+        })
+        setRecentMistakes(Array.isArray(data?.recentMistakes) ? data.recentMistakes : [])
+        setAchievements(Array.isArray(data?.achievements) ? data.achievements : [])
+      })
+      .catch((e) => {
+        setError(e?.message || "Failed to load performance data.")
+      })
+      .finally(() => setLoading(false))
+  }, [sessionId, userId])
 
   return (
     <Card className="shadow-md border-none overflow-hidden">
@@ -40,24 +54,29 @@ export function ProgressPanel() {
       </CardHeader>
 
       <CardContent className="p-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="stats">Performance</TabsTrigger>
-            <TabsTrigger value="mistakes">Mistakes</TabsTrigger>
-            <TabsTrigger value="achievements">Achievements</TabsTrigger>
-          </TabsList>
+        {loading ? (
+          <div className="text-center py-6 text-muted-foreground">Loading statistics...</div>
+        ) : error ? (
+          <div className="text-center py-6 text-red-500">{error}</div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="stats">Performance</TabsTrigger>
+              <TabsTrigger value="mistakes">Mistakes</TabsTrigger>
+              <TabsTrigger value="achievements">Achievements</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="stats" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">Accuracy</span>
-                  <span className="text-sm font-medium">{stats.accuracy}%</span>
+            <TabsContent value="stats" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Accuracy</span>
+                    <span className="text-sm font-medium">{stats.accuracy}%</span>
+                  </div>
+                  <Progress value={stats.accuracy} className="h-2" />
                 </div>
-                <Progress value={stats.accuracy} className="h-2" />
-              </div>
 
-              <div className="space-y-2">
+                <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm">Timing</span>
                   <span className="text-sm font-medium">{stats.timing}%</span>
@@ -155,6 +174,7 @@ export function ProgressPanel() {
             </div>
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   )

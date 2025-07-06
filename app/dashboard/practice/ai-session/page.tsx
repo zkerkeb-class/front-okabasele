@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useUser } from "@/context/UserContext"
+import { createPracticeSession } from "@/lib/api/session"
+import { createThreadForSession } from "@/lib/api/assistant"
 import { motion, AnimatePresence } from "framer-motion"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { PianoKeyboard } from "@/components/piano/piano-keyboard"
@@ -23,24 +26,42 @@ export default function AIPracticePage() {
     difficulty: "Beginner",
     description: "Learn to play the C Major scale with proper fingering",
   })
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [threadId, setThreadId] = useState<string | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
+  const { user } = useUser();
 
-  // Initialize audio context for voice recognition
+  // Initialisation : création session + thread AI
   useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        // Créer une session de pratique
+        const session = await createPracticeSession({ userId: user.id });
+        setSessionId(session._id);
+        console.log("Session created:", session._id);
+        
+        // Créer un thread AI pour cette session
+        const thread = await createThreadForSession({ sessionId: session._id});
+        setThreadId(thread.threadId);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("Erreur création session/thread:", e);
+      }
+    })();
     if (typeof window !== "undefined") {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-      analyserRef.current = audioContextRef.current.createAnalyser()
-      analyserRef.current.fftSize = 256
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
     }
-
     return () => {
       if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop())
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-    }
-  }, [])
+    };
+  }, [user]);
 
   const toggleListening = async () => {
     if (isListening) {
@@ -156,13 +177,19 @@ export default function AIPracticePage() {
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden"
               >
-                <ProgressPanel />
+                <ProgressPanel sessionId={sessionId} userId={user?.id} />
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* AI Tutor with integrated chat */}
-          <AITutor isListening={isListening} toggleListening={toggleListening} />
+          <AITutor
+            isListening={isListening}
+            toggleListening={toggleListening}
+            sessionId={sessionId}
+            threadId={threadId}
+            userId={user?.id}
+          />
         </div>
       </MIDIPerformanceProvider>
     </DashboardShell>

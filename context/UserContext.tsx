@@ -1,11 +1,11 @@
 "use client"
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { getUserFromToken } from '../lib/api/user';
-import { User } from '../types/user';
+import { IUser } from '../types';
 interface UserContextType {
-  user: User | null;
+  user: IUser | null;
   token: string | null;
-  setUser: (user: User | null) => void;
+  setUser: (user: IUser | null) => void;
   setToken: (token: string | null) => void;
   login: (token: string) => void;
   logout: () => void;
@@ -14,7 +14,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<IUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {

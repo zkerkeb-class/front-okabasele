@@ -11,8 +11,11 @@ import { Bot, LucideX, Volume2, VolumeX, MessageSquare, Mic, MicOff, HelpCircle,
 import { useMIDIPerformance } from "@/components/midi/midi-performance-provider"
 
 interface AITutorProps {
-  isListening: boolean
-  toggleListening: () => void
+  isListening: boolean;
+  toggleListening: () => void;
+  sessionId?: string | null;
+  threadId?: string | null;
+  userId?: string;
 }
 
 interface Message {
@@ -23,7 +26,9 @@ interface Message {
   type?: "voice" | "text" | "system"
 }
 
-export function AITutor({ isListening, toggleListening }: AITutorProps) {
+import { sendAIMessage } from "@/lib/api/assistant";
+
+export function AITutor({ isListening, toggleListening, sessionId, threadId, userId }: AITutorProps) {
   const { performanceAnalysis } = useMIDIPerformance()
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -85,12 +90,14 @@ export function AITutor({ isListening, toggleListening }: AITutorProps) {
       ])
 
       // Set avatar emotion based on score
-      if (performanceAnalysis.overallScore > 85) {
-        setAvatarEmotion("happy")
-      } else if (performanceAnalysis.overallScore < 70) {
-        setAvatarEmotion("concerned")
-      } else {
-        setAvatarEmotion("neutral")
+      if (typeof performanceAnalysis.overallScore === "number") {
+        if (performanceAnalysis.overallScore > 85) {
+          setAvatarEmotion("happy")
+        } else if (performanceAnalysis.overallScore < 70) {
+          setAvatarEmotion("concerned")
+        } else {
+          setAvatarEmotion("neutral")
+        }
       }
 
       // Speak the feedback if not muted
@@ -169,8 +176,8 @@ export function AITutor({ isListening, toggleListening }: AITutorProps) {
   }
 
   // Handle sending a text message
-  const handleSendMessage = () => {
-    if (!textInput.trim()) return
+  const handleSendMessage = async () => {
+    if (!textInput.trim() || !threadId || !userId || !sessionId) return;
 
     // Add user message
     const userMessage: Message = {
@@ -179,28 +186,31 @@ export function AITutor({ isListening, toggleListening }: AITutorProps) {
       role: "user",
       timestamp: new Date(),
       type: "text",
-    }
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setTextInput("");
+    if (inputRef.current) inputRef.current.focus();
 
-    setMessages((prev) => [...prev, userMessage])
-    setTextInput("")
-
-    // Focus the input field again
-    if (inputRef.current) {
-      inputRef.current.focus()
-    }
-
-    // Generate AI response
-    setTimeout(() => {
+    // Call backend AI
+    try {
+      const aiRes = await sendAIMessage({ threadId, message: textInput, userId, sessionId });
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: generateResponse(textInput),
+        content: aiRes.response?.messages?.[0] || "(No response)",
         role: "assistant",
         timestamp: new Date(),
         type: "text",
-      }
-
-      setMessages((prev) => [...prev, aiMessage])
-    }, 1000)
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (e: any) {
+      setMessages((prev) => [...prev, {
+        id: (Date.now() + 2).toString(),
+        content: "AI error: " + (e && typeof e === 'object' && 'message' in e ? e.message : String(e)),
+        role: "assistant",
+        timestamp: new Date(),
+        type: "system",
+      }]);
+    }
   }
 
   // Generate a response based on user input

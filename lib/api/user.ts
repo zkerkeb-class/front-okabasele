@@ -1,4 +1,4 @@
-import { User } from '@/types/user';
+import { IUser } from '@/types';
 import { BDD_SERVICE_URL, AUTH_SERVICE_URL } from '../config/service-urls';
 
 // Types
@@ -35,7 +35,7 @@ export interface GetUserByIdResponse {
   // Ajoutez les champs nécessaires
 }
 
-export interface GetUserByTokenResponse extends User {
+export interface GetUserByTokenResponse extends IUser {
   // Ajoutez les champs nécessaires 
 }
 
