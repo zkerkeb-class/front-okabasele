@@ -36,10 +36,11 @@ interface SimpleMidiListenerProps {
   sessionId: string| null
   referenceId: string| null // adapte le type si tu as un type Reference
   section?: "intro" | "verse" | "chorus" | "bridge" | "outro"
+  onPerformanceSent?: () => void
 }
 
 
-export function SimpleMidiListener({ onMidiData, onActiveNotes, userId, sessionId, referenceId, section = "intro" }: SimpleMidiListenerProps) {
+export function SimpleMidiListener({ onMidiData, onActiveNotes, userId, sessionId, referenceId, section = "intro", onPerformanceSent }: SimpleMidiListenerProps) {
   const [midiData, setMidiData] = useState<MidiNote[]>([])
   const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
   const [connectionStatus, setConnectionStatus] = useState<string>("Initializing...")
@@ -150,6 +151,7 @@ const sendPerformance = async () => {
     await analyzePerformance({ performance: perf, reference });
     console.log("Performance analyzed successfully");
     setMidiData([]);
+    if (onPerformanceSent) onPerformanceSent();
   } catch (e) {
     console.error("Failed to send performance or analyze:", e);
   } finally {
@@ -204,7 +206,7 @@ const sendPerformance = async () => {
             disabled={midiData.length === 0 || isSendingRef.current || !userId || !sessionId || !referenceId}
             className="mb-4"
           >
-            Envoyer la performance à l'IA
+            Terminer la performance
           </Button>
         </div>
         {error && (

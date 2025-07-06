@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { getReferenceById } from "@/lib/api/reference";
 import { useUser } from "@/context/UserContext";
-import { createPracticeSession } from "@/lib/api/session";
+import {
+  createPracticeSession,
+  getUserSessionPerformances,
+} from "@/lib/api/session";
 import { createThreadForSession } from "@/lib/api/assistant";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
@@ -21,13 +24,14 @@ import { BDD_SERVICE_URL } from "@/lib/config/service-urls";
 import { SimpleMidiListener } from "@/components/midi/simple-midi-listenner";
 
 interface MidiNote {
-  note: number
-  noteName: string
-  velocity: number
-  time: number
+  note: number;
+  noteName: string;
+  velocity: number;
+  time: number;
 }
 
 export default function AIPracticePage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -45,41 +49,61 @@ export default function AIPracticePage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const { user } = useUser();
-const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
-  const [midiData, setMidiData] = useState<MidiNote[]>([])
-  const [showMidiListener, setShowMidiListener] = useState(true)
-
+  const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({});
+  const [midiData, setMidiData] = useState<MidiNote[]>([]);
+  const [showMidiListener, setShowMidiListener] = useState(true);
+  const [userPerformances, setUserPerformances] = useState<any>([]);
+  // For triggering a refresh after a new performance
+  const [refreshKey, setRefreshKey] = useState(0);
   // Handle MIDI data from the listener
   const handleMidiData = (data: MidiNote[]) => {
-    setMidiData(data)
+    setMidiData(data);
 
     // Provide feedback for the latest note
     if (data.length > 0) {
-      const latestNote = data[0]
+      const latestNote = data[0];
       toast.success(`Played: ${latestNote.noteName}`, {
         description: `Velocity: ${latestNote.velocity}`,
         duration: 1000,
-      })
+      });
     }
-  }
+    // Trigger a refresh after a new performance is sent (if you know when a performance is sent, call setRefreshKey)
+    // setRefreshKey((k) => k + 1);
+  };
+
+  // Call this function after a performance is sent to backend to refresh stats
+  const refreshPerformances = () => setRefreshKey((k) => k + 1);
 
   // Handle active notes from the listener
   const handleActiveNotes = (notes: Record<number, boolean>) => {
-    setActiveNotes(notes)
-  }
+    setActiveNotes(notes);
+  };
 
   // Handle note clicks from the piano keyboard
   const handleNoteClick = (midiNote: number) => {
     // Convert MIDI note to note name
-    const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    const octave = Math.floor(midiNote / 12) - 1
-    const noteName = noteNames[midiNote % 12] + octave
+    const noteNames = [
+      "C",
+      "C#",
+      "D",
+      "D#",
+      "E",
+      "F",
+      "F#",
+      "G",
+      "G#",
+      "A",
+      "A#",
+      "B",
+    ];
+    const octave = Math.floor(midiNote / 12) - 1;
+    const noteName = noteNames[midiNote % 12] + octave;
 
     toast.info(`Clicked: ${noteName}`, {
       description: `MIDI note: ${midiNote}`,
       duration: 1000,
-    })
-  }
+    });
+  };
   // Initialisation : création session + thread AI
 
   // Fonctions de contrôle de la pratique
@@ -100,22 +124,21 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
       setReferenceId(existingReferenceId);
       // Charger le nom de la partition (reference)
       getReferenceById(existingReferenceId)
-        .then((ref) =>{
+        .then((ref) => {
           setCurrentLesson({
             title: ref.name,
             description:
               "Practice and get instant AI feedback. Ask the AI any question about the piece!",
-          })
-          console.log({
-            title: ref.name,
-            description:
-              "Practice and get instant AI feedback. Ask the AI any question about the piece!",
           });
-          }
-        )
+        })
         .catch(() =>
           setCurrentLesson({ title: "Unknown Piece", description: "" })
         );
+
+      getUserSessionPerformances(existingSessionId, user.id).then((userPerf) => {
+        setUserPerformances(userPerf);
+        setIsLoading(false);
+      });
       return;
     }
 
@@ -131,9 +154,8 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
         setThreadId(thread.threadId);
         localStorage.setItem("practiceThreadId", thread.threadId);
         // Charger le nom de la partition (reference)
-        useEffect(() => {
-          if (!referenceId) return;
-          getReferenceById(referenceId)
+        if (session.reference) {
+          getReferenceById(session.reference)
             .then((ref) =>
               setCurrentLesson({
                 title: ref.name,
@@ -144,7 +166,10 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
             .catch(() =>
               setCurrentLesson({ title: "Unknown Piece", description: "" })
             );
-        }, [referenceId]);
+        }
+        const userPerf = await getUserSessionPerformances(session._id, user.id);
+        setUserPerformances(userPerf);
+        setIsLoading(false);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error("Erreur création session/thread:", e);
@@ -161,7 +186,7 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
         micStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [user]);
+  }, [user, refreshKey]);
 
   const toggleListening = async () => {
     if (isListening) {
@@ -214,6 +239,16 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
     });
   };
 
+  if (isLoading) {
+    return (
+      <DashboardShell>
+        <div className="flex items-center justify-center h-full">
+          <p className="text-muted-foreground">Loading practice session...</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell>
       <MIDIPerformanceProvider>
@@ -230,29 +265,7 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              {!isPlaying ? (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1"
-                  onClick={startPractice}
-                >
-                  <Play className="h-4 w-4" />
-                  Start Practice
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={endPractice}
-                >
-                  <Pause className="h-4 w-4" />
-                  Resume Practice
-                </Button>
-              )}
-            </div>
+           
           </div>
 
           {/* Voice Waveform - Only shown when listening */}
@@ -270,10 +283,16 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
           </AnimatePresence>
 
           {/* Piano Keyboard */}
-      
-             <SimpleMidiListener onMidiData={handleMidiData} onActiveNotes={handleActiveNotes}
-             referenceId={referenceId} userId={user?.id} sessionId={sessionId} section="intro"
-             />
+
+          <SimpleMidiListener
+            onMidiData={handleMidiData}
+            onActiveNotes={handleActiveNotes}
+            referenceId={referenceId}
+            userId={user?.id}
+            sessionId={sessionId}
+            section="intro"
+            onPerformanceSent={refreshPerformances}
+          />
 
           {/* Stats Toggle Button */}
           <div className="flex justify-center">
@@ -305,7 +324,9 @@ const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden"
               >
-                <ProgressPanel sessionId={sessionId} userId={user?.id} />
+                <ProgressPanel data={userPerformances}  />
+          {/* Pass refreshPerformances to children if needed, e.g. to SimpleMidiListener or PracticeControls */}
+          {/* <SimpleMidiListener ... onPerformanceSent={refreshPerformances} /> */}
               </motion.div>
             )}
           </AnimatePresence>
