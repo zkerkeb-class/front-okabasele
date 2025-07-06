@@ -1,14 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bot, LucideX, Volume2, VolumeX, MessageSquare, Mic, MicOff, HelpCircle, Lightbulb, Send } from "lucide-react"
-import { useMIDIPerformance } from "@/components/midi/midi-performance-provider"
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Bot,
+  LucideX,
+  Volume2,
+  VolumeX,
+  MessageSquare,
+  Mic,
+  MicOff,
+  HelpCircle,
+  Lightbulb,
+  Send,
+} from "lucide-react";
+import { useMIDIPerformance } from "@/components/midi/midi-performance-provider";
 
 interface AITutorProps {
   isListening: boolean;
@@ -19,63 +30,132 @@ interface AITutorProps {
 }
 
 interface Message {
-  id: string
-  content: string
-  role: "user" | "assistant"
-  timestamp: Date
-  type?: "voice" | "text" | "system"
+  id: string;
+  content: string;
+  role: "user" | "assistant";
+  timestamp: Date;
+  type?: "voice" | "text" | "system";
 }
 
-import { sendAIMessage } from "@/lib/api/assistant";
+import { getThreadById, sendAIMessage } from "@/lib/api/assistant";
+import { formatStringToJSON } from "@/lib/utils";
 
-export function AITutor({ isListening, toggleListening, sessionId, threadId, userId }: AITutorProps) {
-  const { performanceAnalysis } = useMIDIPerformance()
+export function AITutor({
+  isListening,
+  toggleListening,
+  sessionId,
+  threadId,
+  userId,
+}: AITutorProps) {
+  const { performanceAnalysis } = useMIDIPerformance();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      content: "Welcome to your piano practice session! I'll guide you through this lesson.",
+      content:
+        "Welcome to your piano practice session! I'll guide you through this lesson.",
       role: "assistant",
       timestamp: new Date(),
     },
     {
       id: "start",
-      content: "Let's start by playing the C major scale. Place your right thumb on middle C.",
+      content:
+        "Let's start by playing the C major scale. Place your right thumb on middle C.",
       role: "assistant",
       timestamp: new Date(),
     },
-  ])
-  const [currentMessage, setCurrentMessage] = useState("")
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const [muted, setMuted] = useState(false)
-  const [avatarState, setAvatarState] = useState<"neutral" | "speaking" | "listening" | "thinking">("neutral")
-  const [avatarEmotion, setAvatarEmotion] = useState<"neutral" | "happy" | "concerned">("neutral")
-  const [showHelp, setShowHelp] = useState(false)
-  const [textInput, setTextInput] = useState("")
-  const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
-  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  ]);
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [avatarState, setAvatarState] = useState<
+    "neutral" | "speaking" | "listening" | "thinking"
+  >("neutral");
+  const [avatarEmotion, setAvatarEmotion] = useState<
+    "neutral" | "happy" | "concerned"
+  >("neutral");
+  const [showHelp, setShowHelp] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const speechSynthesisRef = useRef<SpeechSynthesis | null>(null);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Initialize speech synthesis
   useEffect(() => {
     if (typeof window !== "undefined") {
-      speechSynthesisRef.current = window.speechSynthesis
+      speechSynthesisRef.current = window.speechSynthesis;
     }
     return () => {
       if (speechSynthesisRef.current && speechSynthesisRef.current.speaking) {
-        speechSynthesisRef.current.cancel()
+        speechSynthesisRef.current.cancel();
       }
       if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current)
+        clearTimeout(messageTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
+  // Retreive thread messages on mount
+  useEffect(() => {
+    const fetchThreadMessages = async () => {
+      if (!threadId || !userId || !sessionId) return;
+
+      try {
+        const data = await getThreadById(threadId);
+        console.log("Thread messages data:", data);
+
+        // OpenAI-style message objects with content.text.value
+        setMessages(
+          data.messages
+            .map((msg: any) => {
+              let content = "";
+              if (Array.isArray(msg.content)) {
+                content = msg.content
+                  .map((part: any) => {
+                    if (
+                      part.text &&
+                      typeof part.text === "object" &&
+                      part.text.value
+                    ) {
+                      return part.text.value;
+                    }
+                    if (typeof part.text === "string") {
+                      return part.text;
+                    }
+                    return "";
+                  })
+                  .join(" ");
+              } else if (msg.content?.text?.value) {
+                content = msg.content.text.value;
+              } else if (msg.content?.text) {
+                content = msg.content.text;
+              } else if (typeof msg.content === "string") {
+                content = msg.content;
+              }
+              return {
+                id: msg.id,
+                content,
+                role: msg.role,
+                timestamp: new Date(msg.created_at * 1000),
+                type: msg.type || "text",
+              };
+            })
+            .sort(
+              (a: any, b: any) => a.timestamp.getTime() - b.timestamp.getTime()
+            )
+        );
+      } catch (error) {
+        console.error("Error fetching thread messages:", error);
+      }
+    };
+
+    fetchThreadMessages();
+  }, [threadId, userId, sessionId]);
 
   // Handle performance analysis changes
   useEffect(() => {
     if (performanceAnalysis && performanceAnalysis.feedback.length > 0) {
-      const feedback = performanceAnalysis.feedback[0]
+      const feedback = performanceAnalysis.feedback[0];
 
       // Add feedback to messages
       setMessages((prev) => [
@@ -87,40 +167,45 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
           timestamp: new Date(),
           type: "system",
         },
-      ])
+      ]);
 
       // Set avatar emotion based on score
       if (typeof performanceAnalysis.overallScore === "number") {
         if (performanceAnalysis.overallScore > 85) {
-          setAvatarEmotion("happy")
+          setAvatarEmotion("happy");
         } else if (performanceAnalysis.overallScore < 70) {
-          setAvatarEmotion("concerned")
+          setAvatarEmotion("concerned");
         } else {
-          setAvatarEmotion("neutral")
+          setAvatarEmotion("neutral");
         }
       }
 
       // Speak the feedback if not muted
       if (!muted) {
-        speakText(feedback)
+        speakText(feedback);
       }
 
       // Reset emotion after a delay
       setTimeout(() => {
-        setAvatarEmotion("neutral")
-      }, 5000)
+        setAvatarEmotion("neutral");
+      }, 5000);
     }
-  }, [performanceAnalysis, muted])
+  }, [performanceAnalysis, muted]);
 
   // Update avatar state based on listening status
   useEffect(() => {
-    setAvatarState(isListening ? "listening" : isSpeaking ? "speaking" : "neutral")
-  }, [isListening, isSpeaking])
+    setAvatarState(
+      isListening ? "listening" : isSpeaking ? "speaking" : "neutral"
+    );
+  }, [isListening, isSpeaking]);
 
   // Display messages one at a time
   useEffect(() => {
-    if (messages.length > 0 && currentMessage !== messages[messages.length - 1].content) {
-      setCurrentMessage(messages[messages.length - 1].content)
+    if (
+      messages.length > 0 &&
+      currentMessage !== messages[messages.length - 1].content
+    ) {
+      setCurrentMessage(messages[messages.length - 1].content);
 
       // Speak the new message if not muted
       if (
@@ -128,52 +213,59 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
         messages[messages.length - 1].role === "assistant" &&
         messages[messages.length - 1].content !== currentMessage
       ) {
-        speakText(messages[messages.length - 1].content)
+        speakText(messages[messages.length - 1].content);
       }
     }
-  }, [messages, currentMessage, muted])
+  }, [messages, currentMessage, muted]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages, isExpanded])
+  }, [messages, isExpanded]);
 
   // Function to speak text using speech synthesis
   const speakText = (text: string) => {
     if (speechSynthesisRef.current && !muted) {
       // Cancel any ongoing speech
-      speechSynthesisRef.current.cancel()
+      speechSynthesisRef.current.cancel();
 
-      const utterance = new SpeechSynthesisUtterance(text)
+      const utterance = new SpeechSynthesisUtterance(text);
 
       // Set voice to a female voice if available
-      const voices = speechSynthesisRef.current.getVoices()
-      const femaleVoice = voices.find((voice) => voice.name.includes("Female") || voice.name.includes("female"))
+      const voices = speechSynthesisRef.current.getVoices();
+      const femaleVoice = voices.find(
+        (voice) =>
+          voice.name.includes("Female") || voice.name.includes("female")
+      );
       if (femaleVoice) {
-        utterance.voice = femaleVoice
+        utterance.voice = femaleVoice;
       }
 
-      utterance.rate = 1.0
-      utterance.pitch = 1.1
-      utterance.volume = 1.0
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
 
-      utterance.onstart = () => setIsSpeaking(true)
-      utterance.onend = () => setIsSpeaking(false)
-      utterance.onerror = () => setIsSpeaking(false)
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
 
-      speechSynthesisRef.current.speak(utterance)
+      speechSynthesisRef.current.speak(utterance);
     }
-  }
+  };
 
   // Toggle mute state
   const toggleMute = () => {
-    if (!muted && speechSynthesisRef.current && speechSynthesisRef.current.speaking) {
-      speechSynthesisRef.current.cancel()
+    if (
+      !muted &&
+      speechSynthesisRef.current &&
+      speechSynthesisRef.current.speaking
+    ) {
+      speechSynthesisRef.current.cancel();
     }
-    setMuted(!muted)
-  }
+    setMuted(!muted);
+  };
 
   // Handle sending a text message
   const handleSendMessage = async () => {
@@ -193,7 +285,13 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
 
     // Call backend AI
     try {
-      const aiRes = await sendAIMessage({ threadId, message: textInput, userId, sessionId });
+      const aiRes = await sendAIMessage({
+        threadId,
+        message: textInput,
+        userId,
+        sessionId,
+      });
+      console.log({ aiRes });
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: aiRes.response?.messages?.[0] || "(No response)",
@@ -203,30 +301,36 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (e: any) {
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 2).toString(),
-        content: "AI error: " + (e && typeof e === 'object' && 'message' in e ? e.message : String(e)),
-        role: "assistant",
-        timestamp: new Date(),
-        type: "system",
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          content:
+            "AI error: " +
+            (e && typeof e === "object" && "message" in e
+              ? e.message
+              : String(e)),
+          role: "assistant",
+          timestamp: new Date(),
+          type: "system",
+        },
+      ]);
     }
-  }
+  };
 
   // Suggest questions to the user
   const suggestedQuestions = [
     "How do I play this scale?",
     "What is the correct fingering?",
-    "Can you demonstrate this section?",
     "What should I focus on?",
-  ]
+  ];
 
   const handleSuggestedQuestion = (question: string) => {
-    setTextInput(question)
+    setTextInput(question);
     if (inputRef.current) {
-      inputRef.current.focus()
+      inputRef.current.focus();
     }
-  }
+  };
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3">
@@ -249,8 +353,8 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                         avatarState === "speaking"
                           ? "bg-green-500 animate-pulse"
                           : avatarState === "listening"
-                            ? "bg-blue-500 animate-pulse"
-                            : "bg-muted"
+                          ? "bg-blue-500 animate-pulse"
+                          : "bg-muted"
                       }`}
                     />
                   </div>
@@ -260,9 +364,17 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                       size="icon"
                       className="h-7 w-7"
                       onClick={toggleListening}
-                      title={isListening ? "Stop voice recognition" : "Start voice recognition"}
+                      title={
+                        isListening
+                          ? "Stop voice recognition"
+                          : "Start voice recognition"
+                      }
                     >
-                      {isListening ? <Mic className="h-3.5 w-3.5 text-blue-500" /> : <MicOff className="h-3.5 w-3.5" />}
+                      {isListening ? (
+                        <Mic className="h-3.5 w-3.5 text-blue-500" />
+                      ) : (
+                        <MicOff className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
@@ -280,7 +392,11 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                       onClick={toggleMute}
                       title={muted ? "Unmute" : "Mute"}
                     >
-                      {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                      {muted ? (
+                        <VolumeX className="h-3.5 w-3.5" />
+                      ) : (
+                        <Volume2 className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
@@ -307,19 +423,23 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                         <h4 className="font-medium mb-2">Quick Help</h4>
                         <ul className="space-y-1 text-xs">
                           <li className="flex items-center gap-1">
-                            <Mic className="h-3 w-3 text-primary" /> Click the microphone to use voice commands
+                            <Mic className="h-3 w-3 text-primary" /> Click the
+                            microphone to use voice commands
                           </li>
                           <li className="flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3 text-primary" /> Type questions or commands below
+                            <MessageSquare className="h-3 w-3 text-primary" />{" "}
+                            Type questions or commands below
                           </li>
                           <li className="flex items-center gap-1">
-                            <Volume2 className="h-3 w-3 text-primary" /> Toggle AI voice on/off
+                            <Volume2 className="h-3 w-3 text-primary" /> Toggle
+                            AI voice on/off
                           </li>
                         </ul>
                         <div className="mt-2 pt-2 border-t border-border/50">
                           <p className="text-xs text-muted-foreground">
-                            Try asking about fingering, scales, or specific techniques. You can also request
-                            demonstrations or explanations.
+                            Try asking about fingering, scales, or specific
+                            techniques. You can also request demonstrations or
+                            explanations.
                           </p>
                         </div>
                       </div>
@@ -330,44 +450,83 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                 {/* Chat messages */}
                 <ScrollArea className="h-60 pr-4 mb-3" ref={scrollAreaRef}>
                   <div className="space-y-3">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div className="flex items-start gap-2 max-w-[85%]">
-                          {message.role === "assistant" && (
-                            <Avatar className="h-6 w-6 mt-1">
-                              <AvatarImage src="/ai-tutor-avatar.png" alt="AI Tutor" />
-                              <AvatarFallback className="bg-primary/20 text-primary">
-                                <Bot className="h-3 w-3" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div
-                            className={`rounded-lg p-2 text-sm ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : message.type === "system"
+                    {messages.map((message) => {
+                      let parsedContent = message.content;
+                      if (message.role === "assistant") {
+                        let json = formatStringToJSON(message.content);
+
+                        if (json && typeof json === "object" && json.messages) {
+                          let msgArray = Array.isArray(json.messages.messages)
+                            ? json.messages.messages
+                            : [];
+
+                          parsedContent =
+                            (json.messages.emotion
+                              ? json.messages.emotion + " "
+                              : "") +
+                            msgArray
+                              .map((m: any) =>
+                                typeof m === "object" && m.value ? m.value : m
+                              )
+                              .join(" ");
+                        }
+                      }
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${
+                            message.role === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 max-w-[85%]">
+                            {message.role === "assistant" && (
+                              <Avatar className="h-6 w-6 mt-1">
+                                <AvatarImage
+                                  src="/ai-tutor-avatar.png"
+                                  alt="AI Tutor"
+                                />
+                                <AvatarFallback className="bg-primary/20 text-primary">
+                                  <Bot className="h-3 w-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div
+                              className={`rounded-lg p-2 text-sm ${
+                                message.role === "user"
+                                  ? "bg-primary text-primary-foreground"
+                                  : message.type === "system"
                                   ? "bg-muted border border-primary/20"
                                   : "bg-muted border border-border"
-                            }`}
-                          >
-                            {message.content}
-                            <div className="text-xs opacity-60 mt-1 flex items-center gap-1">
-                              {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              {message.type === "voice" && <Mic className="h-2.5 w-2.5" />}
+                              }`}
+                            >
+                              {parsedContent}
+                              <div className="text-xs opacity-60 mt-1 flex items-center gap-1">
+                                {message.timestamp.toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                {message.type === "voice" && (
+                                  <Mic className="h-2.5 w-2.5" />
+                                )}
+                              </div>
                             </div>
+                            {message.role === "user" && (
+                              <Avatar className="h-6 w-6 mt-1">
+                                <AvatarImage
+                                  src="/placeholder.svg"
+                                  alt="User"
+                                />
+                                <AvatarFallback className="bg-primary/10">
+                                  U
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
                           </div>
-                          {message.role === "user" && (
-                            <Avatar className="h-6 w-6 mt-1">
-                              <AvatarImage src="/placeholder.svg" alt="User" />
-                              <AvatarFallback className="bg-primary/10">U</AvatarFallback>
-                            </Avatar>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
 
@@ -375,7 +534,9 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                 <div className="mb-3">
                   <div className="flex items-center gap-1 mb-1.5">
                     <Lightbulb className="h-3 w-3 text-primary" />
-                    <span className="text-xs font-medium">Suggested questions</span>
+                    <span className="text-xs font-medium">
+                      Suggested questions
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestedQuestions.map((question, index) => (
@@ -395,8 +556,8 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                 {/* Input area */}
                 <form
                   onSubmit={(e) => {
-                    e.preventDefault()
-                    handleSendMessage()
+                    e.preventDefault();
+                    handleSendMessage();
                   }}
                   className="flex items-center gap-2"
                 >
@@ -407,7 +568,12 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                     onChange={(e) => setTextInput(e.target.value)}
                     className="flex-1 h-8 text-sm"
                   />
-                  <Button type="submit" size="sm" className="h-8 px-2" disabled={!textInput.trim()}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!textInput.trim()}
+                  >
                     <Send className="h-3.5 w-3.5 mr-1" />
                     <span className="text-xs">Send</span>
                   </Button>
@@ -448,7 +614,10 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                     >
                       <div className="flex items-start gap-2">
                         <Avatar className="h-6 w-6 mt-0.5">
-                          <AvatarImage src="/ai-tutor-avatar.png" alt="AI Tutor" />
+                          <AvatarImage
+                            src="/ai-tutor-avatar.png"
+                            alt="AI Tutor"
+                          />
                           <AvatarFallback className="bg-primary/20 text-primary">
                             <Bot className="h-3 w-3" />
                           </AvatarFallback>
@@ -456,7 +625,10 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                         <div className="flex-1 text-sm">
                           <p className="line-clamp-3">{message.content}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {message.timestamp.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                         </div>
                         <Button
@@ -464,15 +636,17 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
                           size="icon"
                           className="h-5 w-5 -mt-1 -mr-1 opacity-60 hover:opacity-100"
                           onClick={(e) => {
-                            e.stopPropagation()
-                            setMessages((prev) => prev.filter((m) => m.id !== message.id))
+                            e.stopPropagation();
+                            setMessages((prev) =>
+                              prev.filter((m) => m.id !== message.id)
+                            );
                           }}
                         >
                           <LucideX className="h-3 w-3" />
                         </Button>
                       </div>
                     </motion.div>
-                  ),
+                  )
               )}
           </motion.div>
         )}
@@ -498,10 +672,10 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
             avatarState === "speaking"
               ? "bg-green-500"
               : avatarState === "listening"
-                ? "bg-blue-500"
-                : avatarState === "thinking"
-                  ? "bg-amber-500"
-                  : "bg-muted"
+              ? "bg-blue-500"
+              : avatarState === "thinking"
+              ? "bg-amber-500"
+              : "bg-muted"
           }`}
           animate={
             avatarState === "speaking" || avatarState === "listening"
@@ -548,5 +722,5 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
         )}
       </motion.div>
     </div>
-  )
+  );
 }
