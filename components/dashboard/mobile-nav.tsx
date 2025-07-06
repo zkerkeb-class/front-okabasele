@@ -28,7 +28,7 @@ export function MobileNav() {
       <SheetContent side="left" className="pr-0">
         <div className="flex items-center gap-2 px-2 py-4">
           <Music className="h-6 w-6 text-primary" />
-          <span className="font-bold">PianoMind</span>
+          <span className="font-bold">SonataAI</span>
         </div>
         <nav className="grid gap-2 px-2 py-4 text-sm">
           {navItems.map((item) => (

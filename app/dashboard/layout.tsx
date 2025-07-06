@@ -12,11 +12,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav />
             <Music className="h-6 w-6 text-primary" />
-            <span className="font-bold">PianoMind</span>
+            <span className="font-bold">SonataAI</span>
           </div>
           <div className="hidden items-center gap-2 md:flex">
             <Music className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">PianoMind</span>
+            <span className="text-xl font-bold">SonataAI</span>
           </div>
           <UserNav />
         </div>

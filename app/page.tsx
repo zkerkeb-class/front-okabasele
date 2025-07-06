@@ -10,7 +10,7 @@ export default function Home() {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <Music className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">PianoMind</span>
+            <span className="text-xl font-bold">SonataAI</span>
           </div>
           <nav className="flex items-center gap-4">
             <Link href="/auth/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -133,10 +133,10 @@ export default function Home() {
         <div className="container flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center gap-2">
             <Music className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold">PianoMind</span>
+            <span className="text-lg font-semibold">SonataAI</span>
           </div>
           <p className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} PianoMind. All rights reserved.
+            © {new Date().getFullYear()} SonataAI. All rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">

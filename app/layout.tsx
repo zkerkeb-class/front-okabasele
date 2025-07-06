@@ -8,7 +8,7 @@ import { Toaster } from "sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "PianoMind - AI Piano Learning Assistant",
+  title: "SonataAI - AI Piano Learning Assistant",
   description: "Learn piano with personalized AI feedback and interactive lessons",
   generator: 'v0.dev'
 }
