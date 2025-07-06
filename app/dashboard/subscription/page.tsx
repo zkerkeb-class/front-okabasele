@@ -1,18 +1,49 @@
-import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Check } from "lucide-react"
+"use client";
+import { useState } from "react";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Check } from "lucide-react";
+import { checkout } from "@/lib/api/payments";
+import { toast } from "sonner";
 
 export default function SubscriptionPage() {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleCheckout = async (type: string) => {
+    setLoading(type);
+    try {
+      await checkout(type, { type });
+      toast.success("Paiement initié avec succès !");
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors du paiement.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <DashboardShell>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Subscription Plans</h1>
-          <p className="text-muted-foreground">Choose the plan that works best for your learning journey</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Subscription Plans
+          </h1>
+          <p className="text-muted-foreground">
+            Choose the plan that works best for your learning journey
+          </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* All 4 cards in the same line */}
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Free Plan */}
           <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Free Plan</CardTitle>
@@ -46,15 +77,15 @@ export default function SubscriptionPage() {
               </Button>
             </CardFooter>
           </Card>
-
+          {/* Basic Plan (now styled as "Premium" was) */}
           <Card className="flex flex-col border-primary">
             <CardHeader>
               <div className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded-full w-fit mb-2">
                 MOST POPULAR
               </div>
-              <CardTitle>Pro Plan</CardTitle>
-              <CardDescription>For dedicated learners</CardDescription>
-              <div className="mt-4 text-4xl font-bold">$12.99</div>
+              <CardTitle>Basic Plan</CardTitle>
+              <CardDescription>For multiple learners</CardDescription>
+              <div className="mt-4 text-4xl font-bold">$7.99</div>
               <p className="text-sm text-muted-foreground">per month</p>
             </CardHeader>
             <CardContent className="flex-1">
@@ -62,6 +93,44 @@ export default function SubscriptionPage() {
                 <li className="flex items-center">
                   <Check className="mr-2 h-4 w-4 text-primary" />
                   <span>All Free Plan features</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="mr-2 h-4 w-4 text-primary" />
+                  <span>10 practice sessions per month</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="mr-2 h-4 w-4 text-primary" />
+                  <span>Expanded song library</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="mr-2 h-4 w-4 text-primary" />
+                  <span>Basic AI feedback</span>
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button
+                className="w-full"
+                onClick={() => handleCheckout("basic")}
+                disabled={loading === "basic"}
+              >
+                {loading === "basic" ? "Processing..." : "Upgrade to Basic"}
+              </Button>
+            </CardFooter>
+          </Card>
+          {/* Premium Plan (now styled as "Basic" was) */}
+          <Card className="flex flex-col">
+            <CardHeader>
+              <CardTitle>Premium Plan</CardTitle>
+              <CardDescription>For dedicated learners</CardDescription>
+              <div className="mt-4 text-4xl font-bold">$14.99</div>
+              <p className="text-sm text-muted-foreground">per month</p>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <ul className="space-y-2">
+                <li className="flex items-center">
+                  <Check className="mr-2 h-4 w-4 text-primary" />
+                  <span>All Basic Plan features</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="mr-2 h-4 w-4 text-primary" />
@@ -86,13 +155,21 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full">Upgrade to Pro</Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleCheckout("premium")}
+                disabled={loading === "premium"}
+              >
+                {loading === "premium" ? "Processing..." : "Upgrade to Premium"}
+              </Button>
             </CardFooter>
           </Card>
 
+          {/* Pro Plan */}
           <Card className="flex flex-col">
             <CardHeader>
-              <CardTitle>Family Plan</CardTitle>
+              <CardTitle>Pro Plan</CardTitle>
               <CardDescription>For multiple learners</CardDescription>
               <div className="mt-4 text-4xl font-bold">$24.99</div>
               <p className="text-sm text-muted-foreground">per month</p>
@@ -109,7 +186,7 @@ export default function SubscriptionPage() {
                 </li>
                 <li className="flex items-center">
                   <Check className="mr-2 h-4 w-4 text-primary" />
-                  <span>Family progress dashboard</span>
+                  <span>pro progress dashboard</span>
                 </li>
                 <li className="flex items-center">
                   <Check className="mr-2 h-4 w-4 text-primary" />
@@ -122,8 +199,13 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full">
-                Upgrade to Family
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleCheckout("pro")}
+                disabled={loading === "pro"}
+              >
+                {loading === "pro" ? "Processing..." : "Upgrade to Pro"}
               </Button>
             </CardFooter>
           </Card>
@@ -140,7 +222,8 @@ export default function SubscriptionPage() {
                 <div className="grid gap-1">
                   <p className="text-sm font-medium">No payment history</p>
                   <p className="text-sm text-muted-foreground">
-                    Your payment history will appear here once you subscribe to a paid plan.
+                    Your payment history will appear here once you subscribe to
+                    a paid plan.
                   </p>
                 </div>
               </div>
@@ -149,5 +232,5 @@ export default function SubscriptionPage() {
         </Card>
       </div>
     </DashboardShell>
-  )
+  );
 }

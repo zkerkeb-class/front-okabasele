@@ -9,6 +9,7 @@ This is the frontend application for SonataAI, a web-based AI application. The f
 - Next.js
 - TypeScript
 - Tailwind CSS
+- Mailpit : http://localhost:8025/
 
 ## Getting Started
 

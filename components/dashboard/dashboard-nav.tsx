@@ -4,46 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { BarChart, BookOpen, Clock, Home, Music, Settings, CreditCard } from "lucide-react"
-
-const navItems = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Practice",
-    href: "/practice/ai-session",
-    icon: Music,
-  },
-  {
-    title: "Library",
-    href: "/library",
-    icon: BookOpen,
-  },
-  {
-    title: "History",
-    href: "/history",
-    icon: Clock,
-  },
-  {
-    title: "Progress",
-    href: "/progress",
-    icon: BarChart,
-  },
-  {
-    title: "Subscription",
-    href: "/subscription",
-    icon: CreditCard,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-]
-
+import { navItems } from "@/lib/constants/navItems"
 export function DashboardNav() {
   const pathname = usePathname()
 

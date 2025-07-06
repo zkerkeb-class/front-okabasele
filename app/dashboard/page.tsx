@@ -1,3 +1,4 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
@@ -5,13 +6,16 @@ import { ProgressChart } from "@/components/dashboard/progress-chart"
 import { RecentSessions } from "@/components/dashboard/recent-sessions"
 import { ArrowRight, Clock, Music, PlayCircle, Settings } from "lucide-react"
 import Link from "next/link"
+import { useUser } from "@/context/UserContext"
+import { capitalize } from "@/lib/utils"
 
 export default function DashboardPage() {
+  const {user} = useUser(); // Assuming you have a user context or hook to get user info
   return (
     <DashboardShell>
       <div className="flex flex-col gap-4 md:gap-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, Sarah!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {capitalize(user?.firstname)}!</h1>
           <p className="text-muted-foreground">Continue your piano journey with personalized lessons and feedback.</p>
         </div>
 

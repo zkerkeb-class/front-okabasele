@@ -11,10 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useUser } from "@/context/UserContext"
 import { Bell } from "lucide-react"
 import Link from "next/link"
 
 export function UserNav() {
+  const {user} = useUser()
   return (
     <div className="flex items-center gap-4">
       <Button variant="ghost" size="icon" className="relative">
@@ -35,8 +37,8 @@ export function UserNav() {
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">Sarah Connor</p>
-              <p className="text-xs leading-none text-muted-foreground">sarah@example.com</p>
+              <p className="text-sm font-medium leading-none">{user?.firstname} {user?.lastname}</p>
+              <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -45,10 +47,10 @@ export function UserNav() {
               <Link href="/dashboard">Dashboard</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/settings">Settings</Link>
+              <Link href="/dashboard/settings">Settings</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/subscription">Subscription</Link>
+              <Link href="/dashboard/subscription">Subscription</Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

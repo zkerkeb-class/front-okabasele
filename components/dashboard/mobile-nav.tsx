@@ -1,54 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { BarChart, BookOpen, Clock, Home, Menu, Music, Settings, CreditCard } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, Music } from "lucide-react";
 
-const navItems = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Practice",
-    href: "/practice/ai-session",
-    icon: Music,
-  },
-  {
-    title: "Library",
-    href: "/library",
-    icon: BookOpen,
-  },
-  {
-    title: "History",
-    href: "/history",
-    icon: Clock,
-  },
-  {
-    title: "Progress",
-    href: "/progress",
-    icon: BarChart,
-  },
-  {
-    title: "Subscription",
-    href: "/subscription",
-    icon: CreditCard,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-]
+import { navItems } from "@/lib/constants/navItems";
 
 export function MobileNav() {
-  const [open, setOpen] = useState(false)
-  const pathname = usePathname()
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -71,7 +35,10 @@ export function MobileNav() {
             <Button
               key={item.href}
               variant={pathname === item.href ? "secondary" : "ghost"}
-              className={cn("justify-start", pathname === item.href && "bg-muted font-medium")}
+              className={cn(
+                "justify-start",
+                pathname === item.href && "bg-muted font-medium"
+              )}
               asChild
               onClick={() => setOpen(false)}
             >
@@ -84,5 +51,5 @@ export function MobileNav() {
         </nav>
       </SheetContent>
     </Sheet>
-  )
+  );
 }
