@@ -213,38 +213,6 @@ export function AITutor({ isListening, toggleListening, sessionId, threadId, use
     }
   }
 
-  // Generate a response based on user input
-  const generateResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase()
-
-    if (input.includes("how to play") || input.includes("show me")) {
-      return "To play the C major scale, start with your right thumb on middle C. Then use your index finger for D, middle finger for E, thumb under for F, and so on. Would you like me to demonstrate?"
-    }
-
-    if (input.includes("what is") && (input.includes("c major") || input.includes("scale"))) {
-      return "The C major scale consists of the notes C, D, E, F, G, A, B, and C. It's one of the most fundamental scales in music and has no sharps or flats."
-    }
-
-    if (input.includes("finger") || input.includes("fingering")) {
-      return "For the C major scale, the standard right-hand fingering is: 1 (thumb) for C, 2 (index) for D, 3 (middle) for E, 1 (thumb) for F, 2 for G, 3 for A, 4 for B, and 5 (pinky) for the high C."
-    }
-
-    if (input.includes("tempo") || input.includes("speed")) {
-      return "I recommend starting at a slow tempo to ensure accuracy. As you become more comfortable, you'll naturally be able to play faster while maintaining precision."
-    }
-
-    if (input.includes("mistake") || input.includes("wrong")) {
-      return "Don't worry about mistakes! They're an essential part of learning. Focus on playing slowly and accurately first, and speed will come naturally with practice."
-    }
-
-    if (input.includes("thank")) {
-      return "You're welcome! I'm here to help you become a better pianist. Is there anything else you'd like to know?"
-    }
-
-    // Default response
-    return "That's a great question about piano practice. Would you like me to explain more about the current lesson, provide technique tips, or help with something specific?"
-  }
-
   // Suggest questions to the user
   const suggestedQuestions = [
     "How do I play this scale?",

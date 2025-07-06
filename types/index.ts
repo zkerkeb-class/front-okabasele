@@ -15,7 +15,7 @@ export interface IUser {
   isPhoneVerified: boolean;
 }
 
-export type MidiNote =  { note: number; velocity: number; time: number }
+export type MidiNote = { note: number; velocity: number; time: number };
 
 export interface IPerformance {
   startedAt: Date;
@@ -32,14 +32,15 @@ export interface IPerformance {
 }
 
 export interface IReference {
-    name: string;
-    sections: {
-      intro:MidiNote[];
-      verse:MidiNote[];
-      chorus:MidiNote[];
-      bridge: MidiNote[];
-      outro: MidiNote[];
-    };
+  _id: string;
+  name: string;
+  sections: {
+    intro: MidiNote[];
+    verse: MidiNote[];
+    chorus: MidiNote[];
+    bridge: MidiNote[];
+    outro: MidiNote[];
+  };
 }
 
 export interface IThreadMessage {

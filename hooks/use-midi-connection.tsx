@@ -1,12 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 export function useMidiConnection() {
-  const [midiAccess, setMidiAccess] = useState(null)
+  const [midiAccess, setMidiAccess] = useState<null | (typeof navigator extends { requestMIDIAccess: any } ? ReturnType<typeof navigator.requestMIDIAccess> extends Promise<infer T> ? T : never : never)>(null)
   const [connectionStatus, setConnectionStatus] = useState("Initializing...")
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
   const [isWebMidiSupported, setIsWebMidiSupported] = useState(false)
+
+  const handleStateChange = useCallback(function (this: MIDIAccess, event: Event) {
+    const midiEvent = event as MIDIConnectionEvent
+    const { port } = midiEvent
+    if (port && port.type === "input") {
+      if (port.state === "connected") {
+        setConnectionStatus(`Connected to ${port.name || "MIDI device"}`)
+      } else {
+        setConnectionStatus("MIDI device disconnected")
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // Check if Web MIDI API is supported
@@ -46,18 +58,7 @@ export function useMidiConnection() {
         midiAccess.removeEventListener("statechange", handleStateChange)
       }
     }
-  }, [])
-
-  const handleStateChange = (event) => {
-    const { port } = event
-    if (port.type === "input") {
-      if (port.state === "connected") {
-        setConnectionStatus(`Connected to ${port.name || "MIDI device"}`)
-      } else {
-        setConnectionStatus("MIDI device disconnected")
-      }
-    }
-  }
+  }, [handleStateChange])
 
   return {
     midiAccess,

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useMIDIPerformance } from "@/components/midi/midi-performance-provider"
 
 interface PianoKeyProps {
   note: string
@@ -141,8 +140,12 @@ function PianoKey({
   )
 }
 
-export function PianoKeyboard() {
-  const { activeNotes, sendMIDIPerformance } = useMIDIPerformance()
+interface PianoKeyboardProps {
+  activeNotes?: Record<number, boolean>
+  onNoteClick?: (midiNote: number) => void
+}
+
+export function PianoKeyboard({ activeNotes = {}, onNoteClick }: PianoKeyboardProps) {
   const [correctNotes, setCorrectNotes] = useState<number[]>([])
   const [incorrectNotes, setIncorrectNotes] = useState<number[]>([])
   const [fingerSuggestions, setFingerSuggestions] = useState<Record<number, number>>({})
@@ -166,11 +169,7 @@ export function PianoKeyboard() {
   // Handle key click
   const handleKeyClick = useCallback(
     (midiNote: number) => {
-      // Generate a random velocity between 60-100
-      const velocity = Math.floor(Math.random() * 40) + 60
-
-      // Send a single note as a MIDI performance
-      sendMIDIPerformance([{ note: midiNote, velocity, time: Date.now() }])
+      onNoteClick?.(midiNote)
 
       // Simulate correct/incorrect feedback (in a real app, this would be based on the expected note)
       const isCorrect = Math.random() > 0.3 // 70% chance of being correct for demo
@@ -187,7 +186,7 @@ export function PianoKeyboard() {
         }, 800)
       }
     },
-    [sendMIDIPerformance],
+    [onNoteClick],
   )
 
   // Generate piano keys data

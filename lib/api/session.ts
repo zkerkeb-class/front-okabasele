@@ -4,7 +4,7 @@ export interface CreatePracticeSessionRequest {
   [key: string]: any;
 }
 export interface CreatePracticeSessionResponse {
-  id: string;
+  _id: string;
   [key: string]: any;
 }
 

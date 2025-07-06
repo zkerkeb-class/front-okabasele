@@ -1,58 +1,158 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useUser } from "@/context/UserContext"
-import { createPracticeSession } from "@/lib/api/session"
-import { createThreadForSession } from "@/lib/api/assistant"
-import { motion, AnimatePresence } from "framer-motion"
-import { DashboardShell } from "@/components/dashboard/dashboard-shell"
-import { PianoKeyboard } from "@/components/piano/piano-keyboard"
-import { AITutor } from "@/components/practice/ai-tutor"
-import { SheetMusicDisplay } from "@/components/practice/sheet-music-display"
-import { PracticeControls } from "@/components/practice/practice-controls"
-import { ProgressPanel } from "@/components/practice/progress-panel"
-import { MIDIPerformanceProvider } from "@/components/midi/midi-performance-provider"
-import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, Play } from "lucide-react"
-import { toast } from "sonner"
-import { VoiceWaveform } from "@/components/practice/voice-waveform"
+import { useState, useEffect, useRef } from "react";
+import { getReferenceById } from "@/lib/api/reference";
+import { useUser } from "@/context/UserContext";
+import { createPracticeSession } from "@/lib/api/session";
+import { createThreadForSession } from "@/lib/api/assistant";
+import { motion, AnimatePresence } from "framer-motion";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { PianoKeyboard } from "@/components/piano/piano-keyboard";
+import { AITutor } from "@/components/practice/ai-tutor";
+import { SheetMusicDisplay } from "@/components/practice/sheet-music-display";
+import { PracticeControls } from "@/components/practice/practice-controls";
+import { ProgressPanel } from "@/components/practice/progress-panel";
+import { MIDIPerformanceProvider } from "@/components/midi/midi-performance-provider";
+import { Button } from "@/components/ui/button";
+import { ChevronUp, ChevronDown, Play, Pause } from "lucide-react";
+import { toast } from "sonner";
+import { VoiceWaveform } from "@/components/practice/voice-waveform";
+import { BDD_SERVICE_URL } from "@/lib/config/service-urls";
+import { SimpleMidiListener } from "@/components/midi/simple-midi-listenner";
+
+interface MidiNote {
+  note: number
+  noteName: string
+  velocity: number
+  time: number
+}
 
 export default function AIPracticePage() {
-  const [isListening, setIsListening] = useState(false)
-  const [showStats, setShowStats] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentLesson, setCurrentLesson] = useState({
-    title: "C Major Scale",
-    difficulty: "Beginner",
-    description: "Learn to play the C Major scale with proper fingering",
-  })
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [threadId, setThreadId] = useState<string | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
-  const micStreamRef = useRef<MediaStream | null>(null)
+  const [isListening, setIsListening] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentLesson, setCurrentLesson] = useState<{
+    title: string;
+    description?: string;
+  }>({
+    title: "",
+    description: "",
+  });
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const { user } = useUser();
+const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({})
+  const [midiData, setMidiData] = useState<MidiNote[]>([])
+  const [showMidiListener, setShowMidiListener] = useState(true)
 
+  // Handle MIDI data from the listener
+  const handleMidiData = (data: MidiNote[]) => {
+    setMidiData(data)
+
+    // Provide feedback for the latest note
+    if (data.length > 0) {
+      const latestNote = data[0]
+      toast.success(`Played: ${latestNote.noteName}`, {
+        description: `Velocity: ${latestNote.velocity}`,
+        duration: 1000,
+      })
+    }
+  }
+
+  // Handle active notes from the listener
+  const handleActiveNotes = (notes: Record<number, boolean>) => {
+    setActiveNotes(notes)
+  }
+
+  // Handle note clicks from the piano keyboard
+  const handleNoteClick = (midiNote: number) => {
+    // Convert MIDI note to note name
+    const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    const octave = Math.floor(midiNote / 12) - 1
+    const noteName = noteNames[midiNote % 12] + octave
+
+    toast.info(`Clicked: ${noteName}`, {
+      description: `MIDI note: ${midiNote}`,
+      duration: 1000,
+    })
+  }
   // Initialisation : création session + thread AI
+
+  // Fonctions de contrôle de la pratique
+  const endSession = () => {
+    setSessionId(null);
+    setThreadId(null);
+    localStorage.removeItem("practiceSessionId");
+    localStorage.removeItem("practiceThreadId");
+  };
   useEffect(() => {
     if (!user) return;
+    const existingSessionId = localStorage.getItem("practiceSessionId");
+    const existingThreadId = localStorage.getItem("practiceThreadId");
+    const existingReferenceId = localStorage.getItem("practiceReferenceId");
+    if (existingSessionId && existingThreadId && existingReferenceId) {
+      setSessionId(existingSessionId);
+      setThreadId(existingThreadId);
+      setReferenceId(existingReferenceId);
+      // Charger le nom de la partition (reference)
+      getReferenceById(existingReferenceId)
+        .then((ref) =>{
+          setCurrentLesson({
+            title: ref.name,
+            description:
+              "Practice and get instant AI feedback. Ask the AI any question about the piece!",
+          })
+          console.log({
+            title: ref.name,
+            description:
+              "Practice and get instant AI feedback. Ask the AI any question about the piece!",
+          });
+          }
+        )
+        .catch(() =>
+          setCurrentLesson({ title: "Unknown Piece", description: "" })
+        );
+      return;
+    }
+
     (async () => {
       try {
-        // Créer une session de pratique
         const session = await createPracticeSession({ userId: user.id });
         setSessionId(session._id);
-        console.log("Session created:", session._id);
-        
-        // Créer un thread AI pour cette session
-        const thread = await createThreadForSession({ sessionId: session._id});
+        localStorage.setItem("practiceSessionId", session._id);
+        setReferenceId(session.reference);
+        localStorage.setItem("practiceReferenceId", session.reference);
+
+        const thread = await createThreadForSession({ sessionId: session._id });
         setThreadId(thread.threadId);
+        localStorage.setItem("practiceThreadId", thread.threadId);
+        // Charger le nom de la partition (reference)
+        useEffect(() => {
+          if (!referenceId) return;
+          getReferenceById(referenceId)
+            .then((ref) =>
+              setCurrentLesson({
+                title: ref.name,
+                description:
+                  "Practice and get instant AI feedback. Ask the AI any question about the piece!",
+              })
+            )
+            .catch(() =>
+              setCurrentLesson({ title: "Unknown Piece", description: "" })
+            );
+        }, [referenceId]);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error("Erreur création session/thread:", e);
       }
     })();
     if (typeof window !== "undefined") {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
     }
@@ -67,42 +167,52 @@ export default function AIPracticePage() {
     if (isListening) {
       // Stop listening
       if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop())
-        micStreamRef.current = null
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
       }
-      setIsListening(false)
-      toast.info("Voice recognition paused")
+      setIsListening(false);
+      toast.info("Voice recognition paused");
     } else {
       try {
         // Start listening
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        micStreamRef.current = stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        micStreamRef.current = stream;
 
         if (audioContextRef.current && analyserRef.current) {
-          const source = audioContextRef.current.createMediaStreamSource(stream)
-          source.connect(analyserRef.current)
+          const source =
+            audioContextRef.current.createMediaStreamSource(stream);
+          source.connect(analyserRef.current);
         }
 
-        setIsListening(true)
+        setIsListening(true);
         toast.success("Listening for voice commands", {
-          description: "Try saying 'Show me how to play this' or 'What is a C major scale?'",
-        })
+          description:
+            "Try saying 'Show me how to play this' or 'What is a C major scale?'",
+        });
       } catch (error) {
-        console.error("Error accessing microphone:", error)
+        console.error("Error accessing microphone:", error);
         toast.error("Could not access microphone", {
           description: "Please check your browser permissions and try again.",
-        })
+        });
       }
     }
-  }
+  };
 
   // Start practice session
   const startPractice = () => {
-    setIsPlaying(true)
+    setIsPlaying(true);
     toast.success("Practice session started", {
       description: "Play along with the highlighted notes on the keyboard.",
-    })
-  }
+    });
+  };
+  const endPractice = () => {
+    setIsPlaying(false);
+    toast.info("Practice session paused", {
+      description: "You can resume anytime or end the session.",
+    });
+  };
 
   return (
     <DashboardShell>
@@ -111,14 +221,37 @@ export default function AIPracticePage() {
           {/* Lesson Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{currentLesson.title}</h1>
-              <p className="text-muted-foreground">{currentLesson.description}</p>
+              <h1 className="text-3xl font-bold tracking-tight">
+                {currentLesson.title}
+              </h1>
+              {currentLesson.description && (
+                <p className="text-muted-foreground">
+                  {currentLesson.description}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="default" size="sm" className="gap-1" onClick={startPractice} disabled={isPlaying}>
-                <Play className="h-4 w-4" />
-                Start Practice
-              </Button>
+              {!isPlaying ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1"
+                  onClick={startPractice}
+                >
+                  <Play className="h-4 w-4" />
+                  Start Practice
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={endPractice}
+                >
+                  <Pause className="h-4 w-4" />
+                  Resume Practice
+                </Button>
+              )}
             </div>
           </div>
 
@@ -137,15 +270,10 @@ export default function AIPracticePage() {
           </AnimatePresence>
 
           {/* Piano Keyboard */}
-          <div className="bg-gradient-to-b from-background to-muted/5 rounded-xl border shadow-lg p-6">
-            <PianoKeyboard />
-          </div>
-
-          {/* Sheet Music Display */}
-          <SheetMusicDisplay />
-
-          {/* Practice Controls */}
-          <PracticeControls />
+      
+             <SimpleMidiListener onMidiData={handleMidiData} onActiveNotes={handleActiveNotes}
+             referenceId={referenceId} userId={user?.id} sessionId={sessionId} section="intro"
+             />
 
           {/* Stats Toggle Button */}
           <div className="flex justify-center">
@@ -193,5 +321,5 @@ export default function AIPracticePage() {
         </div>
       </MIDIPerformanceProvider>
     </DashboardShell>
-  )
+  );
 }

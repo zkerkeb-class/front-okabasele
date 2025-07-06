@@ -26,8 +26,6 @@ export function ProgressPanel({ sessionId, userId }: ProgressPanelProps) {
     setError(null)
     getUserSessionPerformances(sessionId, userId)
       .then((data) => {
-        // Example: parse backend data into stats, mistakes, achievements
-        // This should be adapted to your backend response structure
         setStats({
           accuracy: data?.overallAccuracy || 0,
           timing: data?.overallTiming || 0,
@@ -40,9 +38,18 @@ export function ProgressPanel({ sessionId, userId }: ProgressPanelProps) {
         })
         setRecentMistakes(Array.isArray(data?.recentMistakes) ? data.recentMistakes : [])
         setAchievements(Array.isArray(data?.achievements) ? data.achievements : [])
+        setError(null)
       })
       .catch((e) => {
-        setError(e?.message || "Failed to load performance data.")
+        // Si c'est une 404 ou aucune performance, on ne met pas d'erreur bloquante
+        if (e?.status === 404 || e?.message?.toLowerCase().includes("not found") || e?.message?.toLowerCase().includes("no performance")) {
+          setStats({})
+          setRecentMistakes([])
+          setAchievements([])
+          setError(null)
+        } else {
+          setError(e?.message || "Failed to retrieve performances.")
+        }
       })
       .finally(() => setLoading(false))
   }, [sessionId, userId])
