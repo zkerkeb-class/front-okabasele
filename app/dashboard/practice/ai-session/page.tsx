@@ -6,22 +6,20 @@ import { useUser } from "@/context/UserContext";
 import {
   createPracticeSession,
   getUserSessionPerformances,
+  endSession as endSessionApi,
 } from "@/lib/api/session";
 import { createThreadForSession } from "@/lib/api/assistant";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { PianoKeyboard } from "@/components/piano/piano-keyboard";
 import { AITutor } from "@/components/practice/ai-tutor";
-import { SheetMusicDisplay } from "@/components/practice/sheet-music-display";
-import { PracticeControls } from "@/components/practice/practice-controls";
 import { ProgressPanel } from "@/components/practice/progress-panel";
 import { MIDIPerformanceProvider } from "@/components/midi/midi-performance-provider";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, Play, Pause } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { VoiceWaveform } from "@/components/practice/voice-waveform";
-import { BDD_SERVICE_URL } from "@/lib/config/service-urls";
 import { SimpleMidiListener } from "@/components/midi/simple-midi-listenner";
+import { useRouter } from "next/navigation";
 
 interface MidiNote {
   note: number;
@@ -51,10 +49,13 @@ export default function AIPracticePage() {
   const { user } = useUser();
   const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({});
   const [midiData, setMidiData] = useState<MidiNote[]>([]);
-  const [showMidiListener, setShowMidiListener] = useState(true);
+  const [showMidiListener, setShowMidiListener] = useState(false);
   const [userPerformances, setUserPerformances] = useState<any>([]);
   // For triggering a refresh after a new performance
   const [refreshKey, setRefreshKey] = useState(0);
+ 
+  const router = useRouter();
+ 
   // Handle MIDI data from the listener
   const handleMidiData = (data: MidiNote[]) => {
     setMidiData(data);
@@ -67,17 +68,10 @@ export default function AIPracticePage() {
         duration: 1000,
       });
     }
-    // Trigger a refresh after a new performance is sent (if you know when a performance is sent, call setRefreshKey)
-    // setRefreshKey((k) => k + 1);
   };
 
   // Call this function after a performance is sent to backend to refresh stats
   const refreshPerformances = () => setRefreshKey((k) => k + 1);
-
-  // Handle active notes from the listener
-  const handleActiveNotes = (notes: Record<number, boolean>) => {
-    setActiveNotes(notes);
-  };
 
   // Handle note clicks from the piano keyboard
   const handleNoteClick = (midiNote: number) => {
@@ -103,6 +97,11 @@ export default function AIPracticePage() {
       description: `MIDI note: ${midiNote}`,
       duration: 1000,
     });
+  };
+
+  // Handle active notes from the listener
+  const handleActiveNotes = (notes: Record<number, boolean>) => {
+    setActiveNotes(notes);
   };
   // Initialisation : création session + thread AI
 
@@ -239,6 +238,20 @@ export default function AIPracticePage() {
     });
   };
 
+  // End session and call backend
+  const handleEndSession = async () => {
+    if (!sessionId) return;
+    try {
+      await endSessionApi(sessionId);
+      toast.success("Session ended successfully!");
+      endSession(); // local cleanup
+      router.push("/dashboard"); // Redirect to dashboard
+      
+    } catch (e) {
+      toast.error("Failed to end session");
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardShell>
@@ -265,7 +278,9 @@ export default function AIPracticePage() {
                 </p>
               )}
             </div>
-           
+            <Button variant="destructive" onClick={handleEndSession} disabled={!sessionId}>
+              End Session
+            </Button>
           </div>
 
           {/* Voice Waveform - Only shown when listening */}

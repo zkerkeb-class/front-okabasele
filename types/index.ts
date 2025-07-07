@@ -18,6 +18,7 @@ export interface IUser {
 export type MidiNote = { note: number; velocity: number; time: number };
 
 export interface IPerformance {
+  _id?: string;
   startedAt: Date;
   endedAt?: Date;
   section: "intro" | "verse" | "chorus" | "bridge" | "outro";
@@ -60,4 +61,24 @@ export interface IThreadMessage {
   }[];
   attachments: any[];
   metadata: Record<string, any>;
+}
+
+export interface ISubscription {
+  _id: string;
+  stripeSubscriptionId: string;
+  __v: number;
+  createdAt: string;
+  plan: string;
+  status: string;
+  user: string;
+  currentPeriodEnd: string;
+}
+
+export interface ISession {
+  _id: string;
+  user: string; // ObjectId as string
+  reference: string; // ObjectId as string
+  startedAt: Date;
+  endedAt?: Date;
+  status: "active" | "ended" | "cancelled";
 }

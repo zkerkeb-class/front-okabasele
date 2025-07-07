@@ -48,26 +48,11 @@ export function AITutor({
   userId,
 }: AITutorProps) {
   const { performanceAnalysis } = useMIDIPerformance();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      content:
-        "Welcome to your piano practice session! I'll guide you through this lesson.",
-      role: "assistant",
-      timestamp: new Date(),
-    },
-    {
-      id: "start",
-      content:
-        "Let's start by playing the C major scale. Place your right thumb on middle C.",
-      role: "assistant",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isExpanded, setIsExpanded] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [avatarState, setAvatarState] = useState<
     "neutral" | "speaking" | "listening" | "thinking"
   >("neutral");
@@ -95,59 +80,59 @@ export function AITutor({
       }
     };
   }, []);
+  const fetchThreadMessages = async () => {
+    if (!threadId || !userId || !sessionId) return;
+
+    try {
+      const data = await getThreadById(threadId);
+      console.log("Thread messages data:", data);
+
+      // OpenAI-style message objects with content.text.value
+      setMessages(
+        data.messages
+          .map((msg: any) => {
+            let content = "";
+            if (Array.isArray(msg.content)) {
+              content = msg.content
+                .map((part: any) => {
+                  if (
+                    part.text &&
+                    typeof part.text === "object" &&
+                    part.text.value
+                  ) {
+                    return part.text.value;
+                  }
+                  if (typeof part.text === "string") {
+                    return part.text;
+                  }
+                  return "";
+                })
+                .join(" ");
+            } else if (msg.content?.text?.value) {
+              content = msg.content.text.value;
+            } else if (msg.content?.text) {
+              content = msg.content.text;
+            } else if (typeof msg.content === "string") {
+              content = msg.content;
+            }
+            return {
+              id: msg.id,
+              content,
+              role: msg.role,
+              timestamp: new Date(msg.created_at * 1000),
+              type: msg.type || "text",
+            };
+          })
+          .sort(
+            (a: any, b: any) => a.timestamp.getTime() - b.timestamp.getTime()
+          )
+      );
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+    }
+  };
   // Retreive thread messages on mount
   useEffect(() => {
-    const fetchThreadMessages = async () => {
-      if (!threadId || !userId || !sessionId) return;
-
-      try {
-        const data = await getThreadById(threadId);
-        console.log("Thread messages data:", data);
-
-        // OpenAI-style message objects with content.text.value
-        setMessages(
-          data.messages
-            .map((msg: any) => {
-              let content = "";
-              if (Array.isArray(msg.content)) {
-                content = msg.content
-                  .map((part: any) => {
-                    if (
-                      part.text &&
-                      typeof part.text === "object" &&
-                      part.text.value
-                    ) {
-                      return part.text.value;
-                    }
-                    if (typeof part.text === "string") {
-                      return part.text;
-                    }
-                    return "";
-                  })
-                  .join(" ");
-              } else if (msg.content?.text?.value) {
-                content = msg.content.text.value;
-              } else if (msg.content?.text) {
-                content = msg.content.text;
-              } else if (typeof msg.content === "string") {
-                content = msg.content;
-              }
-              return {
-                id: msg.id,
-                content,
-                role: msg.role,
-                timestamp: new Date(msg.created_at * 1000),
-                type: msg.type || "text",
-              };
-            })
-            .sort(
-              (a: any, b: any) => a.timestamp.getTime() - b.timestamp.getTime()
-            )
-        );
-      } catch (error) {
-        console.error("Error fetching thread messages:", error);
-      }
-    };
 
     fetchThreadMessages();
   }, [threadId, userId, sessionId]);
@@ -283,24 +268,35 @@ export function AITutor({
     setTextInput("");
     if (inputRef.current) inputRef.current.focus();
 
+    // Add loading/typing indicator
+    const typingId = (Date.now() + 0.5).toString();
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: typingId,
+        content: "AI is typing...",
+        role: "assistant",
+        timestamp: new Date(),
+        type: "system",
+      },
+    ]);
+
     // Call backend AI
     try {
-      const aiRes = await sendAIMessage({
+      await sendAIMessage({
         threadId,
         message: textInput,
         userId,
         sessionId,
       });
-      console.log({ aiRes });
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: aiRes.response?.messages?.[0] || "(No response)",
-        role: "assistant",
-        timestamp: new Date(),
-        type: "text",
-      };
-      setMessages((prev) => [...prev, aiMessage]);
+      // Remove typing indicator
+      setMessages((prev) => prev.filter((m) => m.id !== typingId));
+      // Instead of adding AI response directly, refresh all messages from backend after 5s
+      setTimeout(() => {
+        fetchThreadMessages();
+      }, 5000);
     } catch (e: any) {
+      setMessages((prev) => prev.filter((m) => m.id !== typingId));
       setMessages((prev) => [
         ...prev,
         {
@@ -454,21 +450,32 @@ export function AITutor({
                       let parsedContent = message.content;
                       if (message.role === "assistant") {
                         let json = formatStringToJSON(message.content);
-
-                        if (json && typeof json === "object" && json.messages) {
-                          let msgArray = Array.isArray(json.messages.messages)
-                            ? json.messages.messages
-                            : [];
-
-                          parsedContent =
-                            (json.messages.emotion
-                              ? json.messages.emotion + " "
-                              : "") +
-                            msgArray
-                              .map((m: any) =>
-                                typeof m === "object" && m.value ? m.value : m
-                              )
-                              .join(" ");
+                        // Handle both {messages:[],emotion:""} and {messages:{messages:[],emotion:""}}
+                        if (json && typeof json === "object") {
+                          // Case 1: {messages:[], emotion:""}
+                          if (Array.isArray(json.messages) && typeof json.emotion === "string") {
+                            parsedContent =
+                              (json.emotion ? json.emotion + " " : "") +
+                              json.messages
+                                .map((m: any) =>
+                                  typeof m === "object" && m.value ? m.value : m
+                                )
+                                .join(" ");
+                          }
+                          // Case 2: {messages:{messages:[],emotion:""}}
+                          else if (
+                            json.messages &&
+                            typeof json.messages === "object" &&
+                            Array.isArray(json.messages.messages)
+                          ) {
+                            parsedContent =
+                              (json.messages.emotion ? json.messages.emotion + " " : "") +
+                              json.messages.messages
+                                .map((m: any) =>
+                                  typeof m === "object" && m.value ? m.value : m
+                                )
+                                .join(" ");
+                          }
                         }
                       }
                       return (

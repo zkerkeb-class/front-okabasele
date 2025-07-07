@@ -1,3 +1,12 @@
+// End a session
+export async function endSession(sessionId: string): Promise<any> {
+  const response = await fetch(`${BDD_SERVICE_URL}/api/sessions/${sessionId}/end`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw await response.json();
+  return response.json();
+}
 // Types
 export interface CreatePracticeSessionRequest {
   userId: string;
@@ -31,4 +40,12 @@ export async function getUserSessionPerformances(sessionId: string, userId: stri
   const response = await fetch(`${BDD_SERVICE_URL}/api/sessions/${sessionId}/user/${userId}/performances`);
   if (!response.ok) throw await response.json();
   return response.json();
+}
+
+// Get all sessions for a user
+export async function getSessionsByUserId(userId: string): Promise<any[]> {
+  const response = await fetch(`${BDD_SERVICE_URL}/api/users/${userId}/sessions`);
+  if (!response.ok) throw await response.json();
+  const data = await response.json();
+  return data.data || [];
 }

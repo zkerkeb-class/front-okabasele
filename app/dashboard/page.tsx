@@ -3,20 +3,51 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
 import { ProgressChart } from "@/components/dashboard/progress-chart"
-import { RecentSessions } from "@/components/dashboard/recent-sessions"
+import { useEffect, useState } from "react"
+import { getPerformancesByUser } from "@/lib/api/performance"
 import { ArrowRight, Clock, Music, PlayCircle, Settings } from "lucide-react"
 import Link from "next/link"
 import { useUser } from "@/context/UserContext"
 import { capitalize } from "@/lib/utils"
+import { IPerformance } from "@/types"
 
 export default function DashboardPage() {
-  const {user} = useUser(); // Assuming you have a user context or hook to get user info
+  const { user } = useUser();
+  const [performances, setPerformances] = useState<IPerformance[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      getPerformancesByUser(user.id)
+        .then((data) => setPerformances(data))
+        .finally(() => setLoading(false));
+    }
+  }, [user?.id]);
+
+  // Calculate stats
+  const totalPracticeTime = performances.reduce((acc, perf) => {
+    if (perf.startedAt && perf.endedAt) {
+      const start = new Date(perf.startedAt).getTime();
+      const end = new Date(perf.endedAt).getTime();
+      return acc + Math.max(0, (end - start));
+    }
+    return acc;
+  }, 0);
+  const totalPracticeHours = (totalPracticeTime / (1000 * 60 * 60)).toFixed(1);
+  const streak = 1; // TODO: Calculate real streak
+  const songsLearned = new Set(performances.map((p) => p.section)).size;
+  const currentLevel = "Beginner";
+
   return (
     <DashboardShell>
       <div className="flex flex-col gap-4 md:gap-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {capitalize(user?.firstname)}!</h1>
-          <p className="text-muted-foreground">Continue your piano journey with personalized lessons and feedback.</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome back, {capitalize(user?.firstname)}!
+          </h1>
+          <p className="text-muted-foreground">
+            Here is your personalized dashboard.
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -37,8 +68,8 @@ export default function DashboardPage() {
               </svg>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">7 days</div>
-              <p className="text-xs text-muted-foreground">+2 from last week</p>
+              <div className="text-2xl font-bold">{streak} day{streak !== 1 ? "s" : ""}</div>
+              <p className="text-xs text-muted-foreground">Keep your streak going!</p>
             </CardContent>
           </Card>
           <Card>
@@ -47,18 +78,18 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12.5 hours</div>
-              <p className="text-xs text-muted-foreground">+1.2 hours this week</p>
+              <div className="text-2xl font-bold">{totalPracticeHours} hours</div>
+              <p className="text-xs text-muted-foreground">Across all sessions</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Songs Learned</CardTitle>
+              <CardTitle className="text-sm font-medium">Sections Practiced</CardTitle>
               <Music className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8 songs</div>
-              <p className="text-xs text-muted-foreground">2 in progress</p>
+              <div className="text-2xl font-bold">{songsLearned}</div>
+              <p className="text-xs text-muted-foreground">Unique sections</p>
             </CardContent>
           </Card>
           <Card>
@@ -67,8 +98,8 @@ export default function DashboardPage() {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Intermediate</div>
-              <p className="text-xs text-muted-foreground">Level 3 of 5</p>
+              <div className="text-2xl font-bold">{currentLevel}</div>
+              <p className="text-xs text-muted-foreground">Based on your progress</p>
             </CardContent>
           </Card>
         </div>
@@ -80,7 +111,7 @@ export default function DashboardPage() {
               <CardDescription>Your progress over the last 30 days</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProgressChart />
+              <ProgressChart performances={performances} />
             </CardContent>
           </Card>
           <Card className="md:col-span-3">
@@ -89,7 +120,23 @@ export default function DashboardPage() {
               <CardDescription>Your last 5 practice sessions</CardDescription>
             </CardHeader>
             <CardContent>
-              <RecentSessions />
+              {loading ? (
+                <div>Loading...</div>
+              ) : performances.length === 0 ? (
+                <div>No sessions yet.</div>
+              ) : (
+                <ul className="space-y-2">
+                  {performances.slice(0, 5).map((perf, idx) => (
+                    <li key={perf._id || idx} className="flex flex-col border rounded p-2">
+                      <span className="font-medium">Section: {perf.section}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(perf.startedAt).toLocaleString()}</span>
+                      {perf.feedback?.score && (
+                        <span className="text-xs">Score: {perf.feedback.score}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -113,28 +160,9 @@ export default function DashboardPage() {
               </Button>
             </div>
           </Card>
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Practice with Sheet Music</CardTitle>
-              <CardDescription>
-                Choose from our library of songs and practice with interactive sheet music
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <p className="text-sm text-muted-foreground">
-                Select from different difficulty levels and genres to find the perfect piece to practice.
-              </p>
-            </CardContent>
-            <div className="p-6 pt-0 mt-auto">
-              <Button variant="outline" asChild>
-                <Link href="/practice/sheet-music">
-                  Browse Library <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </Card>
+
         </div>
       </div>
     </DashboardShell>
-  )
+  );
 }
