@@ -57,6 +57,18 @@ export default function SubscriptionPage() {
     if (subscription?.plan === plan && subscription?.status === "active") {
       return <Button variant="outline" className="w-full">Current Plan</Button>;
     }
+    if (!subscription && plan === "free") {
+      return (
+        <Button
+          className="w-full"
+          onClick={() => handleCheckout(plan)}
+          disabled={loading === plan}
+          variant="outline"
+        >
+         Current Plan
+        </Button>
+      );
+    }
     return (
       <Button
         className="w-full"
