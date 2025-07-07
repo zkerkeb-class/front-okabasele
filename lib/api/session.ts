@@ -42,8 +42,10 @@ export async function getUserSessionPerformances(sessionId: string, userId: stri
   return response.json();
 }
 
-export async function getSessionByUserId (userId: string): Promise<any> {
-  const response = await fetch(`${BDD_SERVICE_URL}/api/user/${userId}/sessions`);
+// Get all sessions for a user
+export async function getSessionsByUserId(userId: string): Promise<any[]> {
+  const response = await fetch(`${BDD_SERVICE_URL}/api/users/${userId}/sessions`);
   if (!response.ok) throw await response.json();
-  return response.json();
+  const data = await response.json();
+  return data.data || [];
 }

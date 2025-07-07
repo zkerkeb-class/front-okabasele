@@ -73,3 +73,12 @@ export interface ISubscription {
   user: string;
   currentPeriodEnd: string;
 }
+
+export interface ISession {
+  _id: string;
+  user: string; // ObjectId as string
+  reference: string; // ObjectId as string
+  startedAt: Date;
+  endedAt?: Date;
+  status: "active" | "ended" | "cancelled";
+}
