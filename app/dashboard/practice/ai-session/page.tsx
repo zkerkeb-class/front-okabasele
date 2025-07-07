@@ -49,6 +49,7 @@ export default function AIPracticePage() {
   const { user } = useUser();
   const [activeNotes, setActiveNotes] = useState<Record<number, boolean>>({});
   const [midiData, setMidiData] = useState<MidiNote[]>([]);
+  const [showMidiListener, setShowMidiListener] = useState(false);
   const [userPerformances, setUserPerformances] = useState<any>([]);
   // For triggering a refresh after a new performance
   const [refreshKey, setRefreshKey] = useState(0);
@@ -71,6 +72,32 @@ export default function AIPracticePage() {
 
   // Call this function after a performance is sent to backend to refresh stats
   const refreshPerformances = () => setRefreshKey((k) => k + 1);
+
+  // Handle note clicks from the piano keyboard
+  const handleNoteClick = (midiNote: number) => {
+    // Convert MIDI note to note name
+    const noteNames = [
+      "C",
+      "C#",
+      "D",
+      "D#",
+      "E",
+      "F",
+      "F#",
+      "G",
+      "G#",
+      "A",
+      "A#",
+      "B",
+    ];
+    const octave = Math.floor(midiNote / 12) - 1;
+    const noteName = noteNames[midiNote % 12] + octave;
+
+    toast.info(`Clicked: ${noteName}`, {
+      description: `MIDI note: ${midiNote}`,
+      duration: 1000,
+    });
+  };
 
   // Handle active notes from the listener
   const handleActiveNotes = (notes: Record<number, boolean>) => {

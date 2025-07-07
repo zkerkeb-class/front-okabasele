@@ -27,7 +27,15 @@ export default function HistoryPage() {
     if (user?.id) {
       setLoading(true);
       getSessionsByUserId(user.id)
-        .then(setSessions)
+        .then((data) => {
+          // Sort sessions by startedAt descending (most recent first)
+          const sorted = [...data].sort((a, b) => {
+            const aTime = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+            const bTime = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+            return bTime - aTime;
+          });
+          setSessions(sorted);
+        })
         .finally(() => setLoading(false));
     }
   }, [user?.id]);
