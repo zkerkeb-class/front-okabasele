@@ -1,39 +1,50 @@
 "use client"
 
+import { IPerformance } from "@/types"
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
-const data = [
-  {
-    day: "Mon",
-    score: 65,
-  },
-  {
-    day: "Tue",
-    score: 70,
-  },
-  {
-    day: "Wed",
-    score: 68,
-  },
-  {
-    day: "Thu",
-    score: 75,
-  },
-  {
-    day: "Fri",
-    score: 80,
-  },
-  {
-    day: "Sat",
-    score: 85,
-  },
-  {
-    day: "Sun",
-    score: 82,
-  },
-]
+// const data = [
+//   {
+//     day: "Mon",
+//     score: 65,
+//   },
+//   {
+//     day: "Tue",
+//     score: 70,
+//   },
+//   {
+//     day: "Wed",
+//     score: 68,
+//   },
+//   {
+//     day: "Thu",
+//     score: 75,
+//   },
+//   {
+//     day: "Fri",
+//     score: 80,
+//   },
+//   {
+//     day: "Sat",
+//     score: 85,
+//   },
+//   {
+//     day: "Sun",
+//     score: 82,
+//   },
+// ]
 
-export function ProgressChart() {
+export function ProgressChart({performances}: { performances: IPerformance[] }) {
+  // Transform performances into a format suitable for the chart
+  const data = performances.map((perf) => {
+    const startedAt = new Date(perf.startedAt);
+    const day = startedAt.toLocaleDateString('en-US', { weekday: 'short' });
+    const score = perf.feedback?.score || 0; // Default to 0 if no score
+    return {
+      day,
+      score: Math.round(score * 100) / 100, // Round to 2 decimal places
+    };
+  })
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data}>

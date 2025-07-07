@@ -18,6 +18,7 @@ export interface IUser {
 export type MidiNote = { note: number; velocity: number; time: number };
 
 export interface IPerformance {
+  _id: string;
   startedAt: Date;
   endedAt?: Date;
   section: "intro" | "verse" | "chorus" | "bridge" | "outro";
