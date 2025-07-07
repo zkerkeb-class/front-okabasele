@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,10 +12,33 @@ import {
 } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { checkout } from "@/lib/api/payments";
+import { useUser } from "@/context/UserContext";
 import { toast } from "sonner";
+import { fetchUserSubscriptions } from "@/lib/api/user";
+import { ISubscription } from "@/types";
+import { subscriptionPlans } from "@/lib/constants/subscriptionPlans";
 
 export default function SubscriptionPage() {
+  const { user } = useUser();
   const [loading, setLoading] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<ISubscription|null>(null);
+  const [subLoading, setSubLoading] = useState(true);
+  const [paymentHistory, setPaymentHistory] = useState<ISubscription[]>([]);
+  useEffect(() => {
+    if (user?.id) {
+      setSubLoading(true);
+      fetchUserSubscriptions(user.id)
+        .then(
+          (data) => {
+            if (data.length > 0) {
+             setPaymentHistory(data);
+             setSubscription(data.findLast((sub) => sub.status === "active") || null);
+            }
+          }
+        )
+        .finally(() => setSubLoading(false));
+    }
+  }, [user?.id]);
 
   const handleCheckout = async (type: string) => {
     setLoading(type);
@@ -27,6 +50,23 @@ export default function SubscriptionPage() {
     } finally {
       setLoading(null);
     }
+  };
+
+  const getPlanButton = (plan: string) => {
+    if (subLoading) return <Button variant="outline" className="w-full" disabled>Loading...</Button>;
+    if (subscription?.plan === plan && subscription?.status === "active") {
+      return <Button variant="outline" className="w-full">Current Plan</Button>;
+    }
+    return (
+      <Button
+        className="w-full"
+        onClick={() => handleCheckout(plan)}
+        disabled={loading === plan}
+        variant={plan === "basic" ? undefined : "outline"}
+      >
+        {loading === plan ? "Processing..." : `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}
+      </Button>
+    );
   };
 
   return (
@@ -72,12 +112,10 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full">
-                Current Plan
-              </Button>
+              {getPlanButton("free")}
             </CardFooter>
           </Card>
-          {/* Basic Plan (now styled as "Premium" was) */}
+          {/* Basic Plan */}
           <Card className="flex flex-col border-primary">
             <CardHeader>
               <div className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded-full w-fit mb-2">
@@ -109,16 +147,10 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button
-                className="w-full"
-                onClick={() => handleCheckout("basic")}
-                disabled={loading === "basic"}
-              >
-                {loading === "basic" ? "Processing..." : "Upgrade to Basic"}
-              </Button>
+              {getPlanButton("basic")}
             </CardFooter>
           </Card>
-          {/* Premium Plan (now styled as "Basic" was) */}
+          {/* Premium Plan */}
           <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Premium Plan</CardTitle>
@@ -155,17 +187,9 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleCheckout("premium")}
-                disabled={loading === "premium"}
-              >
-                {loading === "premium" ? "Processing..." : "Upgrade to Premium"}
-              </Button>
+              {getPlanButton("premium")}
             </CardFooter>
           </Card>
-
           {/* Pro Plan */}
           <Card className="flex flex-col">
             <CardHeader>
@@ -199,14 +223,7 @@ export default function SubscriptionPage() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => handleCheckout("pro")}
-                disabled={loading === "pro"}
-              >
-                {loading === "pro" ? "Processing..." : "Upgrade to Pro"}
-              </Button>
+              {getPlanButton("pro")}
             </CardFooter>
           </Card>
         </div>
@@ -217,17 +234,58 @@ export default function SubscriptionPage() {
             <CardDescription>Your recent payment transactions</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            {subLoading ? (
+              <div className="flex items-center justify-center p-4">
+              <span className="text-muted-foreground">Loading...</span>
+              </div>
+            ) : paymentHistory && paymentHistory.length > 0 ? (
+              <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-muted border rounded-md">
+                <thead>
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Plan</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Amount</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Status</th>
+                </tr>
+                </thead>
+                <tbody className="bg-background divide-y divide-muted">
+                {paymentHistory.map((payment, idx) => (
+                  <tr key={payment._id || idx}>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm">
+                    {payment.createdAt
+                    ? new Date(payment.createdAt).toLocaleDateString()
+                    : "-"}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm capitalize">
+                    {payment.plan || "-"}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm">
+                    {subscriptionPlans[payment.plan as keyof typeof subscriptionPlans]
+                    ? `$${subscriptionPlans[payment.plan as keyof typeof subscriptionPlans]}`
+                    : "-"}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm capitalize">
+                    {payment.status || "-"}
+                  </td>
+                  </tr>
+                ))}
+                </tbody>
+              </table>
+              </div>
+            ) : (
+              <div className="rounded-md border">
               <div className="flex items-center justify-between p-4">
                 <div className="grid gap-1">
-                  <p className="text-sm font-medium">No payment history</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your payment history will appear here once you subscribe to
-                    a paid plan.
-                  </p>
+                <p className="text-sm font-medium">No payment history</p>
+                <p className="text-sm text-muted-foreground">
+                  Your payment history will appear here once you subscribe to
+                  a paid plan.
+                </p>
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

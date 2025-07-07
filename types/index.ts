@@ -62,3 +62,14 @@ export interface IThreadMessage {
   attachments: any[];
   metadata: Record<string, any>;
 }
+
+export interface ISubscription {
+  _id: string;
+  stripeSubscriptionId: string;
+  __v: number;
+  createdAt: string;
+  plan: string;
+  status: string;
+  user: string;
+  currentPeriodEnd: string;
+}

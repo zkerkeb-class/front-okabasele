@@ -16,6 +16,7 @@ export async function checkout(type: string, data: CheckoutRequest): Promise<Che
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`, // Assuming token is stored in localStorage
       },
       body: JSON.stringify(data),
     });
@@ -25,7 +26,7 @@ export async function checkout(type: string, data: CheckoutRequest): Promise<Che
     }
     const result = await response.json();
     if (result.url) {
-      window.open(result.url, '_blank');
+      window.location.href = result.url; // redirect instead of open in new tab
     }
     return result;
   } catch (error: any) {

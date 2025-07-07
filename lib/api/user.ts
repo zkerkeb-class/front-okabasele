@@ -1,4 +1,4 @@
-import { IUser } from '@/types';
+import { ISubscription, IUser } from '@/types';
 import { BDD_SERVICE_URL, AUTH_SERVICE_URL } from '../config/service-urls';
 
 // Types
@@ -152,5 +152,19 @@ export async function getUserFromToken(token:string): Promise<GetUserByTokenResp
       return data.user
     } catch (error) {
       throw new Error(`Error verifying token: ${error}`)
+    }
+  }
+
+  export async function fetchUserSubscriptions(userId: string): Promise<ISubscription[]> {
+    try {
+      const response = await fetch(`${BDD_SERVICE_URL}/api/users/${userId}/subscriptions`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw errorData || { message: 'Erreur lors de la récupération des abonnements.' };
+      }
+      const result = await response.json();
+      return result.data;
+    } catch (error: any) {
+      throw error;
     }
   }
