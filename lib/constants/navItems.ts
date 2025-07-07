@@ -16,11 +16,11 @@ export const navItems = [
   //   href: "/dashboard/library",
   //   icon: BookOpen,
   // },
-  // {
-  //   title: "History",
-  //   href: "/dashboard/history",
-  //   icon: Clock,
-  // },
+  {
+    title: "History",
+    href: "/dashboard/history",
+    icon: Clock,
+  },
   {
     title: "Subscription",
     href: "/dashboard/subscription",

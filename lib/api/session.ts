@@ -1,3 +1,12 @@
+// End a session
+export async function endSession(sessionId: string): Promise<any> {
+  const response = await fetch(`${BDD_SERVICE_URL}/api/sessions/${sessionId}/end`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw await response.json();
+  return response.json();
+}
 // Types
 export interface CreatePracticeSessionRequest {
   userId: string;
